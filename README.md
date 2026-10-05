@@ -1,6 +1,6 @@
 # Espejo Mágico — Kiosco Interactivo Museográfico
 
-**Telemedellín Tour · UPB · 2025**
+**Telemedellín Tour · UPB · 2026-1**
 
 Instalación interactiva de realidad aumentada para el Tour Telemedellín de la Universidad Pontificia Bolivariana. Los visitantes interactúan con un espejo mágico que detecta su mano y les permite explorar a los presentadores del canal en diferentes escenas noticiosas.
 
@@ -110,4 +110,4 @@ Configurar en [`js/config.js`](js/config.js):
 ## Autor
 
 **Daniel Ardila** · daniel.ardilaa@upb.edu.co  
-Taller 7 | Entretenimiento Digital | Tour Telemedellín · UPB 2025
+Taller 7 | Entretenimiento Digital | Tour Telemedellín · UPB 2026-1
