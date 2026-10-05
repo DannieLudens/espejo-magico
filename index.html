@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1.0" />
+  <title>Espejo Mágico — Tour Telemedellín</title>
+
+  <!-- Preload fuentes -->
+  <link rel="preload" href="assets/fonts/Quicksand-Regular.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="assets/fonts/Quicksand-Medium.ttf"  as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="assets/fonts/Quicksand-Bold.ttf"    as="font" type="font/ttf" crossorigin>
+
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ═══ WEBCAM (oculta, fuente para MediaPipe) ═══ -->
+  <video id="webcam" autoplay playsinline muted></video>
+
+  <!-- ═══ CANVAS DEBUG landmarks (toggle con tecla D) ═══ -->
+  <canvas id="handCanvas"></canvas>
+
+  <!-- ═══ MARCO ESPEJO — bombillas LED ═══ -->
+  <div id="mirror-frame" aria-hidden="true">
+    <div id="bulbs-top"></div>
+    <div id="bulbs-left"></div>
+    <div id="bulbs-right"></div>
+  </div>
+
+  <!-- ═══ ESCENAS ═══ -->
+  <div id="scene-container">
+
+    <!-- STANDBY -->
+    <div id="scene-standby" class="scene active">
+      <!-- Video de fondo en loop -->
+      <video id="standby-video" autoplay loop muted playsinline preload="auto"></video>
+      <!-- Overlay oscuro encima del video -->
+      <div class="standby-overlay"></div>
+      <!-- Contenido encima del overlay -->
+      <div class="standby-content">
+        <!-- Título arriba -->
+        <h1 class="standby-title">Espejo Mágico<br>Tour Telemedellín</h1>
+        <!-- Indicador: invisible hasta detectar mano (ocupa espacio para no desplazar layout) -->
+        <div id="hand-detected-indicator" class="hand-indicator hidden">
+          <span class="hand-icon">👌</span>
+          <span>Haz el gesto de pinza para comenzar</span>
+        </div>
+        <!-- Logo al final, debajo del indicador -->
+        <img src="assets/images/Logotipo_de_Telemedellín2.png" alt="Telemedellín" id="logo-standby" />
+      </div>
+      <!-- Botón oculto (esquina inferior-derecha) → abre escena espejo mágico -->
+      <div id="btn-magic-mirror" title="Espejo Mágico"></div>
+    </div>
+
+    <!-- Créditos en la franja inferior del vanity — visible solo en standby -->
+    <div id="standby-credits">UPB &nbsp;·&nbsp; IDED &nbsp;·&nbsp; Taller 7 Entretenimiento Digital<span id="mirror-credits-extra"> &nbsp;·&nbsp; Tour Telemedellín</span></div>
+
+    <!-- MENÚ PRINCIPAL -->
+    <div id="scene-menu" class="scene">
+      <!-- Fondo dinámico — se llena con el fondo del presentador en hover -->
+      <div id="menu-bg"></div>
+
+      <h1 class="menu-title">Espejo Mágico — Tour Telemedellín</h1>
+      <p class="menu-hint">Haz el gesto de pinza con tu mano para seleccionar</p>
+      <div id="presenters-grid"></div>
+    </div>
+
+    <!-- EXPERIENCIA -->
+    <div id="scene-experience" class="scene">
+      <!-- Video fullscreen -->
+      <video id="exp-video" playsinline></video>
+      <audio id="exp-audio"></audio>
+
+      <!-- Overlay de UI (encima del video) -->
+      <div id="exp-ui">
+
+        <!-- Botón volver — esquina superior izquierda -->
+        <div id="exp-back-btn">
+          <span>←</span>
+          <span>Volver</span>
+        </div>
+
+        <!-- Nombre del presentador — cápsula centrada arriba -->
+        <div id="exp-header">
+          <span id="exp-presenter-name"></span>
+        </div>
+
+        <!-- Hint que aparece al final del video -->
+        <div id="exp-continue-hint" class="hidden">
+          <span class="hint-icon">🤌</span>
+          <span>Pinza para continuar</span>
+        </div>
+
+        <!-- Hint ESC -->
+        <div id="exp-esc-hint">Presiona ESC para volver</div>
+
+      </div>
+
+      <!-- Overlay idle — aparece durante el checkpoint entre escenas.
+           El usuario ve el video idle en loop y debe mostrar el objeto
+           físico a la cámara, luego hacer pinza para continuar. -->
+      <div id="exp-idle-overlay" class="hidden">
+        <!-- Fila de videos: objeto a mostrar + cámara del usuario lado a lado -->
+        <div id="exp-idle-media">
+          <video id="exp-idle-object" autoplay loop muted playsinline></video>
+          <video id="exp-idle-camera" autoplay muted playsinline></video>
+        </div>
+        <!-- Badge oculto para el público -->
+        <div id="exp-idle-badge">
+          <span class="idle-check">✓</span>
+          <span>Checkpoint</span>
+        </div>
+        <p id="exp-idle-hint">Muestra el objeto a la cámara</p>
+
+        <!-- Feedback de reconocimiento de objeto -->
+        <div id="det-feedback" data-status="idle">
+          <span id="det-label">Acerca el objeto a la cámara</span>
+          <div id="det-hold-bar">
+            <div id="det-hold-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fade negro entre escenas de video -->
+      <div id="exp-scene-fade"></div>
+    </div>
+
+    <!-- PANTALLA FINAL -->
+    <div id="scene-final" class="scene">
+
+      <!-- ── MODO A: Resultado (imagen del presentador) ── -->
+      <div id="final-result-mode">
+        <div id="final-bg-overlay"></div>
+        <img id="final-presenter-img" src="" alt="Resultado" />
+
+        <div id="final-cta">
+          <h2 id="final-presenter-name-label"></h2>
+          <p id="final-presenter-subtitle">¡Así queda tu look!</p>
+
+          <!-- Botón Maquillaje — pinza para activar -->
+          <div class="final-btn" id="btn-try-makeup" data-action="makeup">
+            <span class="final-btn-icon">💄</span>
+            <span class="final-btn-label">Prueba el maquillaje</span>
+            <div class="final-btn-bar"></div>
+          </div>
+
+          <!-- Botón Volver -->
+          <div class="final-btn secondary" id="btn-back-menu" data-action="menu">
+            <span class="final-btn-icon">↩</span>
+            <span class="final-btn-label">Volver al inicio</span>
+            <div class="final-btn-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MODO B: Photo Booth (webcam + filtro AR) ── -->
+      <div id="final-photobooth-mode" class="hidden">
+
+        <!-- Canvas del maquillaje (Face Mesh overlay) -->
+        <canvas id="photobooth-makeup-canvas"></canvas>
+        <!-- Canvas principal (webcam + makeup compuesto) -->
+        <canvas id="photobooth-canvas"></canvas>
+        <!-- Canvas EXCLUSIVO para Snap Camera Kit.
+             NUNCA llamar .getContext() aquí — Snap necesita un canvas virgen
+             para poder llamar transferControlToOffscreen() internamente. -->
+        <canvas id="snap-canvas" class="hidden"></canvas>
+
+        <div id="photobooth-ui">
+          <!-- Cuenta regresiva (oculta hasta iniciar captura) -->
+          <div id="countdown-display" class="hidden">3</div>
+
+          <!-- Mensaje de bienvenida al modo preview -->
+          <div id="photobooth-hint">✨ Explora tu look — cuando estés listo, pinza el botón de cámara</div>
+
+          <!-- Botón para tomar la foto.
+               El usuario pinza este botón para iniciar la cuenta regresiva. -->
+          <div id="btn-take-photo">
+            <div class="take-photo-ring">
+              <span class="take-photo-icon">📷</span>
+            </div>
+            <span class="take-photo-label">Tomar foto</span>
+          </div>
+
+          <div id="photobooth-back" class="photobooth-back-btn">← Volver</div>
+        </div>
+      </div>
+
+      <!-- ── MODO C: Foto tomada + QR ── -->
+      <div id="final-photo-mode" class="hidden">
+        <div id="photo-result">
+          <img id="captured-photo-img" src="" alt="Tu foto" />
+        </div>
+        <div id="photo-share">
+          <div id="qr-code-container"></div>
+          <p class="qr-label">📱 Escanea con tu celular para guardar la foto</p>
+          <div id="photo-uploading" class="hidden">Subiendo foto… ⏳</div>
+        </div>
+        <div id="photo-actions">
+          <div class="final-btn" id="btn-retake">
+            <span class="final-btn-icon">📸</span>
+            <span class="final-btn-label">Tomar otra</span>
+            <div class="final-btn-bar"></div>
+          </div>
+          <div class="final-btn secondary" id="btn-photo-menu">
+            <span class="final-btn-icon">↩</span>
+            <span class="final-btn-label">Volver al inicio</span>
+            <div class="final-btn-bar"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /scene-final -->
+
+    <!-- ═══ ESPEJO MÁGICO (water ripple + webcam) ═══ -->
+    <div id="scene-mirror" class="scene">
+      <canvas id="mirror-canvas"></canvas>
+
+      <!-- Logo flotante — esquina inferior derecha -->
+      <div class="mirror-overlay-content">
+        <img src="assets/images/Logotipo_de_Telemedellín2.png" alt="Telemedellín" class="mirror-logo" />
+      </div>
+
+      <!-- Cuenta regresiva → standby (se resetea cuando hay mano) -->
+      <div id="mirror-countdown">
+        <div class="mirror-cd-wrap">
+          <svg viewBox="0 0 56 56" width="56" height="56" aria-hidden="true">
+            <circle class="mirror-cd-track" cx="28" cy="28" r="23"/>
+            <circle class="mirror-cd-ring"  cx="28" cy="28" r="23" id="mirror-cd-ring"/>
+          </svg>
+          <span id="mirror-cd-num">60</span>
+        </div>
+        <span class="mirror-cd-label">seg</span>
+      </div>
+
+      <!-- Panel de configuración del ripple (tecla C) -->
+      <div id="mirror-config" class="ctrl-panel hidden">
+        <div class="ctrl-panel-title">⚙ Ripple Config <kbd>C</kbd></div>
+
+        <div class="ctrl-row">
+          <label>Damping</label>
+          <input type="range" id="cfg-damping" min="0.950" max="0.999" step="0.001" value="0.950">
+          <span id="cfg-damping-val">0.950</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Fuerza</label>
+          <input type="range" id="cfg-force" min="50" max="1200" step="10" value="150">
+          <span id="cfg-force-val">150</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Radio</label>
+          <input type="range" id="cfg-radius" min="3" max="40" step="1" value="3">
+          <span id="cfg-radius-val">3</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Distorsión</label>
+          <input type="range" id="cfg-disp" min="0.5" max="12" step="0.1" value="0.5">
+          <span id="cfg-disp-val">0.5</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Tinte</label>
+          <input type="range" id="cfg-tint" min="0" max="1" step="0.05" value="0.10">
+          <span id="cfg-tint-val">0.10</span>
+        </div>
+        <div class="ctrl-row">
+          <button id="cfg-reset" class="ctrl-btn">↺ Restablecer valores</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TUTORIAL — instrucción del gesto pinza (entre espejo y standby) ═══ -->
+    <div id="scene-tutorial" class="scene">
+      <!-- Video de instrucción a pantalla completa -->
+      <video id="tuto-video" playsinline preload="auto"></video>
+      <!-- Audio narración instrucción gesto pinza -->
+      <audio id="tuto-audio" preload="auto"></audio>
+
+      <!-- Branding: logo + 3 barras animadas (esquina inferior derecha) -->
+      <div id="tuto-branding">
+        <img src="assets/images/Logotipo_de_Telemedellín.png" alt="Telemedellín" id="tuto-logo" />
+        <div id="tuto-bars">
+          <div class="tuto-bar" style="background:#7fc850"></div>
+          <div class="tuto-bar" style="background:#ffb03f"></div>
+          <div class="tuto-bar" style="background:#ff7f37"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ INTRO — pantalla de carga entre selección de presentador y experiencia ═══ -->
+    <div id="scene-intro" class="scene">
+      <!-- Imagen del presentador (fondoFinal) a tamaño mediano — reemplaza al video Tuto -->
+      <img id="intro-presenter-img" src="" alt="" />
+      <!-- Audio de introducción específico del presentador seleccionado -->
+      <audio id="intro-audio" preload="auto"></audio>
+
+      <!-- Branding: logo + 3 barras animadas (esquina inferior derecha) -->
+      <div id="intro-branding">
+        <img src="assets/images/Logotipo_de_Telemedellín.png" alt="Telemedellín" id="intro-logo" />
+        <div id="intro-bars">
+          <div class="intro-bar" style="background:#7fc850"></div>
+          <div class="intro-bar" style="background:#ffb03f"></div>
+          <div class="intro-bar" style="background:#ff7f37"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ OUTRO — pantalla de cierre al terminar la experiencia ═══
+         Sin video: fondo negro + marco vanity (siempre visible) + logo + barras.
+         Solo suena Instruccion_Probarse_el_maquillaje.mp3. -->
+    <div id="scene-outro" class="scene">
+      <!-- Audio instrucción prueba de maquillaje -->
+      <audio id="outro-audio" preload="auto"></audio>
+
+      <!-- Branding: logo izquierda + barras animadas a la derecha (esquina inferior derecha) -->
+      <div id="outro-branding">
+        <img src="assets/images/Logotipo_de_Telemedellín.png" alt="Telemedellín" id="outro-logo" />
+        <div id="outro-bars">
+          <div class="outro-bar" style="background:#7fc850"></div>
+          <div class="outro-bar" style="background:#ffb03f"></div>
+          <div class="outro-bar" style="background:#ff7f37"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /scene-container -->
+
+  <!-- ═══ TÍTULO INFERIOR ESCENA MIRROR (franja vanity inferior) ═══ -->
+  <div id="mirror-bottom-title">Espejo Mágico — Tour Telemedellín</div>
+
+  <!-- ═══ BARRA DE PROGRESO EXPERIENCIA (franja vanity inferior) ═══
+       Visible solo durante body.experience-mode.
+       Los dots de checkpoint se inyectan por JS encima de la barra. -->
+  <div id="exp-bottom-bar">
+    <div id="exp-progress-track">
+      <div id="exp-progress-fill"></div>
+      <!-- Checkpoint dots — inyectados por JS con left: X% -->
+    </div>
+  </div>
+
+  <!-- ═══ PANEL CRISTAL TARJETAS (tecla G) ═══ -->
+  <div id="glass-panel" class="ctrl-panel hidden">
+    <div class="ctrl-panel-title">✨ Cristal tarjetas <kbd>G</kbd></div>
+    <div class="ctrl-row">
+      <label>Destello</label>
+      <input type="range" id="sparkle-slider" min="0" max="1" step="0.05" value="0.15">
+      <span id="sparkle-val">0.15</span>
+    </div>
+    <div class="ctrl-row">
+      <label>Rayas</label>
+      <input type="range" id="stripes-slider" min="0" max="1" step="0.05" value="0.40">
+      <span id="stripes-val">0.40</span>
+    </div>
+  </div>
+
+  <!-- ═══ PANEL DE AUDIO (tecla V) ═══ -->
+  <div id="sound-panel" class="ctrl-panel hidden">
+    <div class="ctrl-panel-title">🔊 Audio <kbd>V</kbd></div>
+
+    <!-- Master -->
+    <div class="audio-section">
+      <div class="audio-section-header">
+        <span class="audio-section-name">🎛 Master</span>
+        <button id="btn-mute-master" class="mute-btn" data-muted="false">🔊</button>
+      </div>
+      <div class="ctrl-row">
+        <input type="range" id="vol-master" min="0" max="100" step="1" value="100">
+        <span id="vol-master-val">100%</span>
+      </div>
+    </div>
+
+    <!-- Voz en off -->
+    <div class="audio-section">
+      <div class="audio-section-header">
+        <span class="audio-section-name">🎙 Voz en off</span>
+        <button id="btn-mute-voz" class="mute-btn" data-muted="false">🔊</button>
+      </div>
+      <div class="ctrl-row">
+        <input type="range" id="vol-voz" min="0" max="100" step="1" value="100">
+        <span id="vol-voz-val">100%</span>
+      </div>
+    </div>
+
+    <!-- Videos -->
+    <div class="audio-section">
+      <div class="audio-section-header">
+        <span class="audio-section-name">🎬 Videos</span>
+        <button id="btn-mute-video" class="mute-btn" data-muted="false">🔊</button>
+      </div>
+      <div class="ctrl-row">
+        <input type="range" id="vol-video" min="0" max="100" step="1" value="100">
+        <span id="vol-video-val">100%</span>
+      </div>
+    </div>
+
+    <!-- Música de fondo -->
+    <div class="audio-section">
+      <div class="audio-section-header">
+        <span class="audio-section-name">🎵 Música de fondo</span>
+        <button id="btn-mute-music" class="mute-btn" data-muted="false">🔊</button>
+      </div>
+      <div class="ctrl-row">
+        <input type="range" id="vol-music" min="0" max="100" step="1" value="35">
+        <span id="vol-music-val">35%</span>
+      </div>
+    </div>
+
+    <div class="ctrl-row">
+      <button id="btn-save-audio" class="ctrl-btn">💾 Guardar configuración</button>
+    </div>
+  </div>
+
+  <!-- ═══ CURSOR LABIAL (modo normal) ═══
+       Hotspot = esquina superior-izquierda de la imagen (punta del labial).
+       JS posiciona left/top en la coordenada del dedo índice. -->
+  <div id="lipstick-cursor" aria-hidden="true">
+    <img src="assets/images/cursor/pink-pomade-custom-cursor.png"
+         alt="" draggable="false" />
+  </div>
+
+  <!-- ═══ CURSOR INTERACTIVO 👌 (modo pointer) ═══
+       Aparece en lugar del labial cuando el dedo está sobre algo accionable.
+       CSS lo centra en la posición del dedo con translate(-50%,-50%). -->
+  <div id="pinch-cursor" aria-hidden="true">👌</div>
+
+  <!-- ═══ RING DE PROGRESO PINZA ═══ -->
+  <svg id="pinch-progress" viewBox="0 0 56 56" aria-hidden="true">
+    <circle class="track" cx="28" cy="28" r="22"/>
+    <circle class="fill"  cx="28" cy="28" r="22"/>
+  </svg>
+
+  <!-- ═══ AUDIO AMBIENTE (global, persiste entre escenas) ═══ -->
+  <audio id="ambient-music" loop preload="auto">
+    <source src="assets/audios/MusicaAmbiente.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- ═══ SCRIPTS ═══ -->
+  <!-- ── TensorFlow.js + Teachable Machine (reconocimiento de objetos) ── -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+  <!-- ── MediaPipe (Hands + Face Mesh) ── -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous"></script>
+
+  <!-- ── QR Code ── -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
+
+  <!-- ── Firebase (activar en config.js cuando tengas las credenciales) ── -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+
+  <!-- ── App ── -->
+  <script src="js/config.js"></script>
+  <script src="js/object-detector.js"></script>
+  <script src="js/captions.js"></script>
+  <script src="js/presenters.js"></script>
+  <script src="js/hand-tracker.js"></script>
+  <script src="js/cursor.js"></script>
+  <script src="js/mirror-frame.js?v=2"></script>
+  <script src="js/face-filter.js"></script>
+  <script src="js/snap-filter.js"></script>
+  <script src="js/photo-booth.js"></script>
+  <script src="js/magic-mirror.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- ── Firebase init (solo si está habilitado) ── -->
+  <script>
+    if (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.firebase.enabled) {
+      firebase.initializeApp(APP_CONFIG.firebase);
+      console.log('[Firebase] Conectado al proyecto:', APP_CONFIG.firebase.projectId);
+    }
+  </script>
+
+</body>
+</html>

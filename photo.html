@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tu foto — Espejo Mágico Telemedellín</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0a;
+      color: #F0E6C8;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      gap: 1.5rem;
+    }
+
+    .logo {
+      width: 180px;
+      max-width: 60vw;
+    }
+
+    h1 {
+      font-size: clamp(1.2rem, 5vw, 1.8rem);
+      color: #D4AF37;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    p {
+      font-size: clamp(0.85rem, 3.5vw, 1rem);
+      color: rgba(240,230,200,0.6);
+      text-align: center;
+      max-width: 380px;
+    }
+
+    #photo-container {
+      width: 100%;
+      max-width: 500px;
+    }
+
+    #photo-container img {
+      width: 100%;
+      border-radius: 12px;
+      border: 2px solid #D4AF37;
+      box-shadow: 0 4px 30px rgba(212,175,55,0.25);
+    }
+
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: #D4AF37;
+      color: #000;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 0.85rem 2rem;
+      border-radius: 999px;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+      cursor: pointer;
+    }
+
+    .download-btn:active { transform: scale(0.96); }
+
+    .not-found {
+      color: rgba(240,230,200,0.45);
+      text-align: center;
+    }
+
+    footer {
+      font-size: 0.75rem;
+      color: rgba(240,230,200,0.3);
+      text-align: center;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <img src="assets/images/Logotipo_de_Telemedellín.png"
+       alt="Telemedellín" class="logo"
+       onerror="this.style.display='none'" />
+
+  <h1>¡Tu foto del Espejo Mágico!</h1>
+
+  <div id="photo-container">
+    <p class="not-found" id="loading-msg">Cargando tu foto…</p>
+  </div>
+
+  <div id="actions" style="display:none; flex-direction:column; align-items:center; gap:1rem;">
+    <a id="download-link" class="download-btn" download="espejo-magico-foto.jpg">
+      ⬇️ Guardar foto
+    </a>
+    <p>Toca el botón para guardar la imagen en tu celular.</p>
+  </div>
+
+  <p class="not-found" id="error-msg" style="display:none;">
+    Esta foto ya no está disponible.<br>
+    Vuelve al kiosco para tomar una nueva. 📸
+  </p>
+
+  <footer>Espejo Mágico — Tour Telemedellín · TeleMedellín</footer>
+
+  <script>
+    (function () {
+      /* Intentar obtener el ID de la foto desde la URL */
+      const params = new URLSearchParams(window.location.search);
+      const id     = params.get('id');
+
+      if (!id) {
+        showError();
+        return;
+      }
+
+      /* Caso A: Firebase URL directa (la foto ya está en la URL) */
+      if (id.startsWith('http')) {
+        showPhoto(id);
+        return;
+      }
+
+      /* Caso B: foto en localStorage o almacenamiento compartido */
+      const stored = localStorage.getItem(id);
+      if (stored) {
+        showPhoto(stored);
+        return;
+      }
+
+      /* Caso C: la foto vive en el servidor de kiosco (mismo origen) */
+      /* Intentar cargarla como imagen directa */
+      const tryUrl = '/fotos/' + id + '.jpg';
+      const testImg = new Image();
+      testImg.onload  = () => showPhoto(tryUrl);
+      testImg.onerror = showError;
+      testImg.src     = tryUrl;
+    })();
+
+    function showPhoto(src) {
+      const container = document.getElementById('photo-container');
+      const loadingMsg = document.getElementById('loading-msg');
+      if (loadingMsg) loadingMsg.remove();
+
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = 'Tu foto del Espejo Mágico';
+      container.appendChild(img);
+
+      const link = document.getElementById('download-link');
+      if (link) link.href = src;
+
+      const actions = document.getElementById('actions');
+      if (actions) actions.style.display = 'flex';
+    }
+
+    function showError() {
+      const loadingMsg = document.getElementById('loading-msg');
+      if (loadingMsg) loadingMsg.remove();
+      const errorMsg = document.getElementById('error-msg');
+      if (errorMsg) errorMsg.style.display = 'block';
+    }
+  </script>
+
+</body>
+</html>

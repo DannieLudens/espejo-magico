@@ -1,0 +1,13 @@
+{
+  "name": "snap-kit-bridge",
+  "private": true,
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@snap/camera-kit": "latest"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
